@@ -28,7 +28,10 @@ async def command_start_handler(message: Message) -> None:
     await message.answer(f"Hello, <b>{message.from_user.full_name} !</b>")
     kb = [
         [types.KeyboardButton(text="Поды")],
-        # [types.KeyboardButton(text="Одноразки")]
+        [types.KeyboardButton(text="Одноразки")],
+        [types.KeyboardButton(text="Жидкости")],
+        [types.KeyboardButton(text="Расходники")],
+        [types.KeyboardButton(text="Корзина")]
     ]
     keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True
                                          )
@@ -46,23 +49,88 @@ def get_product_keyboard(product_: int, category_: int):
 
 @dp.message(F.text == "Поды")
 async def with_puree(message: types.Message):
-    cursor.execute('SELECT * FROM products WHERE count > 0')
+    cursor.execute('SELECT * FROM products WHERE count > 0 and category = 1')
     records = cursor.fetchall()
     products = {}
-    for row in records:
-        products[row[0]] = row
-    for i in range(len(products)):
-        product = str(products.get(i + 1)[1])
-        price = str(products.get(i + 1)[2])
-        answer = product + "-" + price + "\n"
+    for i in range(len(records)):
+        products[records[i][0]] = records[i]
+        print(products)
+    for i in products.keys():
+        product = str(products.get(i)[1])
+        price = str(products.get(i)[2])
+        answer = product + " - " + price + " р.\n"
         await message.answer("Товар: " + answer,
-                             reply_markup=get_product_keyboard(products.get(i + 1)[0], products.get(i + 1)[6]))
+                             reply_markup=get_product_keyboard(products.get(i)[0], products.get(i)[6]))
     kb = [
         [types.KeyboardButton(text="Корзина")],
         [types.KeyboardButton(text="Оформить заказ")]
     ]
-    keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True
-                                         )
+    keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
+    await message.answer("Выберите дальнейшее действие", reply_markup=keyboard)
+
+
+@dp.message(F.text == "Одноразки")
+async def with_puree(message: types.Message):
+    cursor.execute('SELECT * FROM products WHERE count > 0 and category = 2')
+    records = cursor.fetchall()
+    products = {}
+    for i in range(len(records)):
+        products[records[i][0]] = records[i]
+        print(products)
+    for i in products.keys():
+        product = str(products.get(i)[1])
+        price = str(products.get(i)[2])
+        answer = product + " - " + price + " р.\n"
+        await message.answer("Товар: " + answer,
+                             reply_markup=get_product_keyboard(products.get(i)[0], products.get(i)[6]))
+    kb = [
+        [types.KeyboardButton(text="Корзина")],
+        [types.KeyboardButton(text="Оформить заказ")]
+    ]
+    keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
+    await message.answer("Выберите дальнейшее действие", reply_markup=keyboard)
+
+@dp.message(F.text == "Жидкости")
+async def with_puree(message: types.Message):
+    cursor.execute('SELECT * FROM products WHERE count > 0 and category = 3')
+    records = cursor.fetchall()
+    products = {}
+    for i in range(len(records)):
+        products[records[i][0]] = records[i]
+        print(products)
+    for i in products.keys():
+        product = str(products.get(i)[1])
+        price = str(products.get(i)[2])
+        answer = product + " - " + price + " р.\n"
+        await message.answer("Товар: " + answer,
+                             reply_markup=get_product_keyboard(products.get(i)[0], products.get(i)[6]))
+    kb = [
+        [types.KeyboardButton(text="Корзина")],
+        [types.KeyboardButton(text="Оформить заказ")]
+    ]
+    keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
+    await message.answer("Выберите дальнейшее действие", reply_markup=keyboard)
+
+
+@dp.message(F.text == "Расходники")
+async def with_puree(message: types.Message):
+    cursor.execute('SELECT * FROM products WHERE count > 0 and category = 4')
+    records = cursor.fetchall()
+    products = {}
+    for i in range(len(records)):
+        products[records[i][0]] = records[i]
+        print(products)
+    for i in products.keys():
+        product = str(products.get(i)[1])
+        price = str(products.get(i)[2])
+        answer = product + " - " + price + " р.\n"
+        await message.answer("Товар: " + answer,
+                             reply_markup=get_product_keyboard(products.get(i)[0], products.get(i)[6]))
+    kb = [
+        [types.KeyboardButton(text="Корзина")],
+        [types.KeyboardButton(text="Оформить заказ")]
+    ]
+    keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
     await message.answer("Выберите дальнейшее действие", reply_markup=keyboard)
 
 
@@ -89,12 +157,17 @@ async def without_puree(message: types.Message):
     for row in records1:
         pods[row[0]] = row
     answer = 'Ваши товары:\n'
-    if (len(records) == 0):
-        await message.reply("Корзина пуста")
+    if len(records) == 0:
         kb = [
-            [types.KeyboardButton(text="Продолжить")]
+            [types.KeyboardButton(text="Поды")],
+            [types.KeyboardButton(text="Одноразки")],
+            [types.KeyboardButton(text="Жидкости")],
+            [types.KeyboardButton(text="Расходники")],
+            [types.KeyboardButton(text="Корзина")]
         ]
-        keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+        keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
+        await message.answer("Корзина пуста, добавьте товары в корзину перед заказом", reply_markup=keyboard)
+
     else:
         for row in records:
             product = str(pods.get(row[1])[1])
@@ -125,10 +198,19 @@ async def with_puree(message: types.Message):
     korzina = {}
     for row in records:
         korzina[row[0]] = row
-    if len(korzina)==0:
-        await message.answer("Корзина пуста, добавьте товары в корзину перед заказом")
+    if len(korzina) == 0:
+        kb = [
+            [types.KeyboardButton(text="Поды")],
+            [types.KeyboardButton(text="Одноразки")],
+            [types.KeyboardButton(text="Жидкости")],
+            [types.KeyboardButton(text="Расходники")],
+            [types.KeyboardButton(text="Корзина")]
+        ]
+        keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
+        await message.answer("Корзина пуста, добавьте товары в корзину перед заказом", reply_markup=keyboard)
+
     else:
-        await message.answer("Укажите ваш номер телефона для заказа")
+        await message.answer("Укажите ваш номер телефона для заказа в формате +7 или 8")
 
 
 @dp.message()
