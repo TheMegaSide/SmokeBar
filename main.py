@@ -1,6 +1,5 @@
 import logging
 from typing import Optional
-
 import psycopg2
 from aiogram import F
 from aiogram import Bot, Dispatcher, types
@@ -29,7 +28,7 @@ async def command_start_handler(message: Message) -> None:
     await message.answer(f"Hello, <b>{message.from_user.full_name} !</b>")
     kb = [
         [types.KeyboardButton(text="Поды")],
-        #[types.KeyboardButton(text="Одноразки")]
+        # [types.KeyboardButton(text="Одноразки")]
     ]
     keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True
                                          )
@@ -126,12 +125,14 @@ async def with_puree(message: types.Message):
     korzina = {}
     for row in records:
         korzina[row[0]] = row
-    await message.answer("Укажите ваш номер телефона для заказа")
+    if len(korzina)==0:
+        await message.answer("Корзина пуста, добавьте товары в корзину перед заказом")
+    else:
+        await message.answer("Укажите ваш номер телефона для заказа")
 
 
 @dp.message()
 async def echo_message(message: types.Message):
-
     if message.text.startswith('+') or message.text.startswith('8'):
 
         phone = message.text
@@ -142,10 +143,10 @@ async def echo_message(message: types.Message):
         await message.answer("Укажите ваш адрес доставки")
     else:
         address = message.text
-        query = 'update clients set address=\''+address+'\' where id=' + str(message.from_user.id)
+        query = 'update clients set address=\'' + address + '\' where id=' + str(message.from_user.id)
         cursor.execute(query)
         conn.commit()
-        query = 'delete from korzina where userid='+str(message.from_user.id)
+        query = 'delete from korzina where userid=' + str(message.from_user.id)
         cursor.execute(query)
         conn.commit()
         await message.answer("Ваш заказ будет доставлен по адресу " + address)
