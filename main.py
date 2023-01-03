@@ -13,18 +13,24 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 logging.basicConfig(level=logging.INFO)
 conn = psycopg2.connect(dbname='postgres', user='postgres', password='12345', host='localhost')
 cursor = conn.cursor()
+group_id = -828412008
 TOKEN = "5922515777:AAGII3tdL8L9h7jd-KmObXUb3o3EBS7RFLw"
+bot = Bot(TOKEN)
 dp = Dispatcher()
 
 
-class NumbersCallbackFactory(CallbackData, prefix="fabnum"):
+class BasketCallbackFactory(CallbackData, prefix="fabnum"):
     action: str
     product: Optional[int]
     category: Optional[int]
 
 
+class OrderCallbackFactory(CallbackData, prefix="order"):
+    client: int
+
+
 @dp.message(Command(commands=["start"]))
-async def command_start_handler(message: Message) -> None:
+async def main_menu(message: Message) -> None:
     await message.answer(f"Hello, <b>{message.from_user.full_name} !</b>")
     kb = [
         [types.KeyboardButton(text="Поды")],
@@ -39,16 +45,50 @@ async def command_start_handler(message: Message) -> None:
 
 
 # input_field_placeholder="Выберите способ подачи"
-def get_product_keyboard(product_: int, category_: int):
+def add_product_builder(product_: int, category_: int):
     builder = InlineKeyboardBuilder()
     builder.button(
         text="Добавить в корзину",
-        callback_data=NumbersCallbackFactory(action="add", product=product_, category=category_))
+        callback_data=BasketCallbackFactory(action="add", product=product_, category=category_))
     return builder.as_markup()
 
 
+def work_with_order(client_: int):
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text='Принять заказ', callback_data=OrderCallbackFactory(action="take", client=client_)
+    )
+    return builder.as_markup()
+
+
+def send_order(client_: int):
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text='Заказ в пути', callback_data=OrderCallbackFactory(action="send", client=client_)
+    )
+    return builder.as_markup()
+
+
+@dp.callback_query(OrderCallbackFactory.filter(F.action == "take"))
+async def take_order_call(
+        callback: types.CallbackQuery,
+        callback_data: OrderCallbackFactory
+):
+    await bot.send_message(callback_data.client, "Ваш заказ в обработке")
+    await callback.message.answer('Заказ принят в обработку', reply_markup=send_order(callback_data.client))
+
+
+@dp.callback_query(OrderCallbackFactory.filter(F.action == "send"))
+async def send_order_call(
+        callback: types.CallbackQuery,
+        callback_data: OrderCallbackFactory
+):
+    await bot.send_message(callback_data.client, "Ваш заказ в пути")
+    await callback.message.answer('Заказ в доставке', reply_markup=send_order(callback_data.client))
+
+
 @dp.message(F.text == "Поды")
-async def with_puree(message: types.Message):
+async def pod_selection(message: types.Message):
     cursor.execute('SELECT * FROM products WHERE count > 0 and category = 1')
     records = cursor.fetchall()
     products = {}
@@ -60,7 +100,7 @@ async def with_puree(message: types.Message):
         price = str(products.get(i)[2])
         answer = product + " - " + price + " р.\n"
         await message.answer("Товар: " + answer,
-                             reply_markup=get_product_keyboard(products.get(i)[0], products.get(i)[6]))
+                             reply_markup=add_product_builder(products.get(i)[0], products.get(i)[6]))
     kb = [
         [types.KeyboardButton(text="Корзина")],
         [types.KeyboardButton(text="Оформить заказ")]
@@ -70,7 +110,7 @@ async def with_puree(message: types.Message):
 
 
 @dp.message(F.text == "Одноразки")
-async def with_puree(message: types.Message):
+async def onetime_selection(message: types.Message):
     cursor.execute('SELECT * FROM products WHERE count > 0 and category = 2')
     records = cursor.fetchall()
     products = {}
@@ -82,7 +122,7 @@ async def with_puree(message: types.Message):
         price = str(products.get(i)[2])
         answer = product + " - " + price + " р.\n"
         await message.answer("Товар: " + answer,
-                             reply_markup=get_product_keyboard(products.get(i)[0], products.get(i)[6]))
+                             reply_markup=add_product_builder(products.get(i)[0], products.get(i)[6]))
     kb = [
         [types.KeyboardButton(text="Корзина")],
         [types.KeyboardButton(text="Оформить заказ")]
@@ -90,8 +130,9 @@ async def with_puree(message: types.Message):
     keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
     await message.answer("Выберите дальнейшее действие", reply_markup=keyboard)
 
+
 @dp.message(F.text == "Жидкости")
-async def with_puree(message: types.Message):
+async def liquid_selection(message: types.Message):
     cursor.execute('SELECT * FROM products WHERE count > 0 and category = 3')
     records = cursor.fetchall()
     products = {}
@@ -103,7 +144,7 @@ async def with_puree(message: types.Message):
         price = str(products.get(i)[2])
         answer = product + " - " + price + " р.\n"
         await message.answer("Товар: " + answer,
-                             reply_markup=get_product_keyboard(products.get(i)[0], products.get(i)[6]))
+                             reply_markup=add_product_builder(products.get(i)[0], products.get(i)[6]))
     kb = [
         [types.KeyboardButton(text="Корзина")],
         [types.KeyboardButton(text="Оформить заказ")]
@@ -113,7 +154,7 @@ async def with_puree(message: types.Message):
 
 
 @dp.message(F.text == "Расходники")
-async def with_puree(message: types.Message):
+async def cons_selection(message: types.Message):
     cursor.execute('SELECT * FROM products WHERE count > 0 and category = 4')
     records = cursor.fetchall()
     products = {}
@@ -125,7 +166,7 @@ async def with_puree(message: types.Message):
         price = str(products.get(i)[2])
         answer = product + " - " + price + " р.\n"
         await message.answer("Товар: " + answer,
-                             reply_markup=get_product_keyboard(products.get(i)[0], products.get(i)[6]))
+                             reply_markup=add_product_builder(products.get(i)[0], products.get(i)[6]))
     kb = [
         [types.KeyboardButton(text="Корзина")],
         [types.KeyboardButton(text="Оформить заказ")]
@@ -134,10 +175,10 @@ async def with_puree(message: types.Message):
     await message.answer("Выберите дальнейшее действие", reply_markup=keyboard)
 
 
-@dp.callback_query(NumbersCallbackFactory.filter(F.action == "add"))
-async def callbacks_num_change_fab(
+@dp.callback_query(BasketCallbackFactory.filter(F.action == "add"))
+async def add_product_call(
         callback: types.CallbackQuery,
-        callback_data: NumbersCallbackFactory
+        callback_data: BasketCallbackFactory
 ):
     cursor.execute('insert into korzina(productid, userid, category) values(' + str(callback_data.product) + ',' + str(
         callback.from_user.id) + ',' + str(callback_data.category) + ')')
@@ -146,7 +187,7 @@ async def callbacks_num_change_fab(
 
 
 @dp.message(F.text == "Корзина")
-async def without_puree(message: types.Message):
+async def basket_check(message: types.Message):
     query = 'select * from korzina where userid=' + str(message.from_user.id)
     cursor.execute(query)
     records = cursor.fetchall()
@@ -183,7 +224,7 @@ async def without_puree(message: types.Message):
 
 
 @dp.message(F.text == "Очистить")
-async def with_puree(message: types.Message):
+async def clean_basket(message: types.Message):
     query = 'delete from korzina where userid=' + str(message.from_user.id)
     cursor.execute(query)
     conn.commit()
@@ -191,7 +232,7 @@ async def with_puree(message: types.Message):
 
 
 @dp.message(F.text == "Оформить заказ")
-async def with_puree(message: types.Message):
+async def order_all(message: types.Message):
     query = 'select * from korzina where userid=' + str(message.from_user.id)
     cursor.execute(query)
     records = cursor.fetchall()
@@ -214,7 +255,7 @@ async def with_puree(message: types.Message):
 
 
 @dp.message()
-async def echo_message(message: types.Message):
+async def catch_phone_address(message: types.Message):
     if message.text.startswith('+') or message.text.startswith('8'):
 
         phone = message.text
@@ -228,10 +269,30 @@ async def echo_message(message: types.Message):
         query = 'update clients set address=\'' + address + '\' where id=' + str(message.from_user.id)
         cursor.execute(query)
         conn.commit()
+
+        await message.answer("Ваш заказ будет доставлен по адресу " + address)
+        query = 'select * from korzina where userid=' + str(message.from_user.id)
+        cursor.execute(query)
+        records = cursor.fetchall()
+        korzina = {}
+        for row in records:
+            korzina[row[1]] = row
+        total = 0
+        cursor.execute('SELECT * FROM products')
+        records = cursor.fetchall()
+        products = {}
+        for row in records:
+            products[row[0]] = row
+        answer = ''
+        for i in korzina.keys():
+            total = total + products.get(i)[2]
+            print(products.get(i)[2])
+            answer = answer + str(products.get(i)[1]) + ' - ' + str(products.get(i)[2]) + '\n'
+        await bot.send_message(group_id, "Пришел заказ: " + answer + 'Сумма=' + str(total),
+                               reply_markup=work_with_order(message.from_user.id))
         query = 'delete from korzina where userid=' + str(message.from_user.id)
         cursor.execute(query)
         conn.commit()
-        await message.answer("Ваш заказ будет доставлен по адресу " + address)
 
 
 def main() -> None:
