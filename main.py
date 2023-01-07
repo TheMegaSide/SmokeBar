@@ -412,8 +412,8 @@ async def catch_phone_address(message: types.Message):
     if message.text.startswith('+') or message.text.startswith('8'):
 
         phone = message.text
-        query = 'insert into clients(id, phone) values(' + str(
-            message.from_user.id) + ',\'' + phone + '\')'
+        query = 'insert into clients(id, phone, username) values(' + str(
+            message.from_user.id) + ',\'' + phone + '\', @'+message.from_user.username+')'
         cursor.execute(query)
         conn.commit()
         await message.answer("Укажите ваш адрес доставки")
