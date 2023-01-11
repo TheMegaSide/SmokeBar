@@ -49,12 +49,10 @@ async def main_menu(message: Message) -> None:
         [types.KeyboardButton(text="Корзина")],
         [types.KeyboardButton(text="Мои заказы")]
     ]
-    keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True
-                                         )
+    keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
     await message.answer("Выберите категорию товаров", reply_markup=keyboard)
 
 
-# input_field_placeholder="Выберите способ подачи"
 def add_product_builder(product_: int, category_: int):
     builder = InlineKeyboardBuilder()
     builder.button(
@@ -90,25 +88,17 @@ def send_order(client_: int, order_id_: int):
 
 
 @dp.callback_query(OrderCallbackFactory.filter(F.action == "send"))
-async def send_order_call(
-        callback: types.CallbackQuery,
-        callback_data: OrderCallbackFactory
-):
+async def send_order_call(callback: types.CallbackQuery, callback_data: OrderCallbackFactory):
     await bot.send_message(callback_data.client, "Ваш заказ в пути")
     cursor.execute('update sold set state=\'В пути\' where id=' + str(callback_data.order_id))
     conn.commit()
     await bot.send_message(group_id, 'Заказ №' + str(callback_data.order_id) + ' в пути')
-    await callback.message.answer("Вы отправились в путь. Нажмите кнопку, когда заказ будет передан клиенту",
-                                  reply_markup=end_order(callback_data.client, callback_data.order_id))
+    await callback.message.answer("Вы отправились в путь. Нажмите кнопку, когда заказ будет передан клиенту", reply_markup=end_order(callback_data.client, callback_data.order_id))
 
 
 @dp.callback_query(OrderCallbackFactory.filter(F.action == "end"))
-async def send_order_call(
-        callback: types.CallbackQuery,
-        callback_data: OrderCallbackFactory
-):
-    await bot.send_message(callback_data.client,
-                           "ВЫ получили ваш заказ. Если что-то пошло не так, свяжитесь с администратором магазина: @ ")
+async def send_order_call(callback: types.CallbackQuery, callback_data: OrderCallbackFactory):
+    await bot.send_message(callback_data.client, "ВЫ получили ваш заказ. Если что-то пошло не так, свяжитесь с администратором магазина: @ ")
     cursor.execute('update sold set state=\'Выполнен\' where id=' + str(callback_data.order_id))
     conn.commit()
     await bot.send_message(group_id, 'Заказ №' + str(callback_data.order_id) + ' доставлен')
@@ -268,7 +258,7 @@ async def basket_check(message: types.Message):
 
 @dp.message(F.text == "Продолжить заказ")
 async def main_menu(message: Message) -> None:
-    await message.answer(f"Hello, <b>{message.from_user.full_name} !</b>")
+    # await message.answer(f"Hello, <b>{message.from_user.full_name} !</b>")
     kb = [
         [types.KeyboardButton(text="Поды")],
         [types.KeyboardButton(text="Одноразки")],
@@ -413,7 +403,7 @@ async def catch_phone_address(message: types.Message):
 
         phone = message.text
         query = 'insert into clients(id, phone, username) values(' + str(
-            message.from_user.id) + ',\'' + phone + '\', @'+message.from_user.username+')'
+            message.from_user.id) + ',\'' + phone + '\', \'@'+message.from_user.username+'\')'
         cursor.execute(query)
         conn.commit()
         await message.answer("Укажите ваш адрес доставки")
