@@ -209,13 +209,15 @@ async def take_order_call(
         callback: types.CallbackQuery,
         callback_data: OrderCallbackFactory
 ):
-    await bot.send_message(callback_data.client, "Ваш заказ в обработке")
+    await bot.send_message(callback_data.client, 'Ваш заказ принят в обработку сотрудником @' + str(
+        callback.from_user.username))
     cursor.execute('update sold set state=\'В обработке\' where id=' + str(callback_data.order_id))
     conn.commit()
     await bot.send_message(callback.from_user.id, "Вы приняли заказ. Нажмите кнопку, когда будете готовы",
                            reply_markup=send_order(callback_data.client, callback_data.order_id))
     await callback.message.answer('Заказ №' + str(callback_data.order_id) + ' принят в обработку сотрудником @' + str(
         callback.from_user.username))
+
 
 
 @dp.message(F.text == "Корзина")
