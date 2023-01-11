@@ -8,6 +8,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import Command
 from aiogram.filters.callback_data import CallbackData
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import StatesGroup, State
 from aiogram.types import Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
@@ -24,6 +26,11 @@ dp = Dispatcher()
 
 def main() -> None:
     dp.run_polling(bot)
+
+
+class Form(StatesGroup):
+    phone = State()
+    address = State()
 
 
 class BasketCallbackFactory(CallbackData, prefix="bask"):
@@ -93,12 +100,14 @@ async def send_order_call(callback: types.CallbackQuery, callback_data: OrderCal
     cursor.execute('update sold set state=\'В пути\' where id=' + str(callback_data.order_id))
     conn.commit()
     await bot.send_message(group_id, 'Заказ №' + str(callback_data.order_id) + ' в пути')
-    await callback.message.answer("Вы отправились в путь. Нажмите кнопку, когда заказ будет передан клиенту", reply_markup=end_order(callback_data.client, callback_data.order_id))
+    await callback.message.answer("Вы отправились в путь. Нажмите кнопку, когда заказ будет передан клиенту",
+                                  reply_markup=end_order(callback_data.client, callback_data.order_id))
 
 
 @dp.callback_query(OrderCallbackFactory.filter(F.action == "end"))
 async def send_order_call(callback: types.CallbackQuery, callback_data: OrderCallbackFactory):
-    await bot.send_message(callback_data.client, "ВЫ получили ваш заказ. Если что-то пошло не так, свяжитесь с администратором магазина: @ ")
+    await bot.send_message(callback_data.client,
+                           "ВЫ получили ваш заказ. Если что-то пошло не так, свяжитесь с администратором магазина: @ ")
     cursor.execute('update sold set state=\'Выполнен\' where id=' + str(callback_data.order_id))
     conn.commit()
     await bot.send_message(group_id, 'Заказ №' + str(callback_data.order_id) + ' доставлен')
@@ -219,7 +228,6 @@ async def take_order_call(
         callback.from_user.username))
 
 
-
 @dp.message(F.text == "Корзина")
 async def basket_check(message: types.Message):
     query = 'select * from korzina where userid=' + str(message.from_user.id)
@@ -295,7 +303,7 @@ async def clean_basket(message: types.Message):
 
 
 @dp.message(F.text == "Оформить заказ")
-async def order_all(message: types.Message):
+async def order_all(message: types.Message, state: FSMContext):
     query = 'select * from korzina where userid=' + str(message.from_user.id)
     cursor.execute(query)
     records = cursor.fetchall()
@@ -320,6 +328,7 @@ async def order_all(message: types.Message):
         for row in records:
             client[row[0]] = row
         if len(client) == 0:
+            await state.set_state(Form.phone)
             await message.answer("Укажите ваш номер телефона для заказа в формате +7 или 8")
         else:
             kb = [
@@ -343,7 +352,8 @@ async def repeated_order(message: types.Message):
 
 
 @dp.message(F.text == "Нет")
-async def repeated_order(message: types.Message):
+async def repeated_order(message: types.Message, state: FSMContext):
+    await state.set_state(Form.phone)
     await message.answer("Укажите ваш номер телефона для заказа в формате +7 или 8")
 
 
@@ -391,7 +401,8 @@ async def process_order(user_id: int, username: str):
                            "Пришел заказ №" + str(
                                next(iter(order.items()))[1][0]) + " Покупатель:@" + username
                            + "\nСписок товаров: " + answer +
-                           'Сумма=' + str(total) + '\nАдрес:' + next(iter(clients.items()))[1][2] + '\nТелефон:' + next(iter(clients.items()))[1][1],
+                           'Сумма=' + str(total) + '\nАдрес:' + next(iter(clients.items()))[1][2] + '\nТелефон:' +
+                           next(iter(clients.items()))[1][1],
                            reply_markup=take_order(user_id, next(iter(order.items()))[1][0]))
 
     query = 'delete from korzina where userid=' + str(user_id)
@@ -399,24 +410,39 @@ async def process_order(user_id: int, username: str):
     conn.commit()
 
 
-@dp.message()
-async def catch_phone_address(message: types.Message):
-    if message.text.startswith('+') or message.text.startswith('8'):
+def check_phone(phone: str):
+    if phone.startswith('+') and phone[1] == '7' and phone[2] == '9' \
+            and len(phone) == 12 and phone[1:len(phone)].isdigit():
+        return True
+    elif phone.startswith('8') and phone[1] == '9' and len(phone) == 11 and phone.isdigit():
+        return True
+    else:
+        return False
 
+
+@dp.message(Form.phone)
+async def catch_phone(message: types.Message, state: FSMContext):
+    if check_phone(message.text):
         phone = message.text
         query = 'insert into clients(id, phone, username) values(' + str(
-            message.from_user.id) + ',\'' + phone + '\', \'@'+message.from_user.username+'\')'
+            message.from_user.id) + ',\'' + phone + '\', \'@' + message.from_user.username + '\')'
         cursor.execute(query)
         conn.commit()
+        await state.set_state(Form.address)
         await message.answer("Укажите ваш адрес доставки")
     else:
-        address = message.text
-        query = 'update clients set address=\'' + address + '\' where id=' + str(message.from_user.id)
-        cursor.execute(query)
-        conn.commit()
+        await message.answer("Введен неверный номер, попробуйте еще раз")
 
-        await message.answer("Ваш заказ будет доставлен по адресу " + address)
-        await process_order(message.from_user.id, message.from_user.username)
+
+@dp.message(Form.address)
+async def catch_address(message: types.Message, state: FSMContext):
+    address = message.text
+    query = 'update clients set address=\'' + address + '\' where id=' + str(message.from_user.id)
+    cursor.execute(query)
+    conn.commit()
+    await state.clear()
+    await message.answer("Ваш заказ будет доставлен по адресу " + address)
+    await process_order(message.from_user.id, message.from_user.username)
 
 
 if __name__ == "__main__":
