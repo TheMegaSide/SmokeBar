@@ -72,7 +72,7 @@ def take_order(client_: int, order_id_: int):
     builder = InlineKeyboardBuilder()
     builder.button(
         text="Принять заказ",
-        callback_data=OrderCallbackFactory(action="take", client=client_, order_id=order_id_)
+        callback_data=OrderCallbackFactory(action="take", client=client_, order_id=order_id_, onetime_keyboard=True)
     )
     return builder.as_markup()
 
@@ -96,6 +96,7 @@ def send_order(client_: int, order_id_: int):
 
 @dp.callback_query(OrderCallbackFactory.filter(F.action == "send"))
 async def send_order_call(callback: types.CallbackQuery, callback_data: OrderCallbackFactory):
+    await callback.message.edit_reply_markup(None)
     await bot.send_message(callback_data.client, "Ваш заказ в пути")
     cursor.execute('update sold set state=\'В пути\' where id=' + str(callback_data.order_id))
     conn.commit()
@@ -106,8 +107,9 @@ async def send_order_call(callback: types.CallbackQuery, callback_data: OrderCal
 
 @dp.callback_query(OrderCallbackFactory.filter(F.action == "end"))
 async def send_order_call(callback: types.CallbackQuery, callback_data: OrderCallbackFactory):
+    await callback.message.edit_reply_markup(None)
     await bot.send_message(callback_data.client,
-                           "ВЫ получили ваш заказ. Если что-то пошло не так, свяжитесь с администратором магазина: @ ")
+                           "Вы получили ваш заказ. Если что-то пошло не так, свяжитесь с администратором магазина: @ ")
     cursor.execute('update sold set state=\'Выполнен\' where id=' + str(callback_data.order_id))
     conn.commit()
     await bot.send_message(group_id, 'Заказ №' + str(callback_data.order_id) + ' доставлен')
@@ -218,6 +220,7 @@ async def take_order_call(
         callback: types.CallbackQuery,
         callback_data: OrderCallbackFactory
 ):
+    await callback.message.edit_reply_markup(None)
     await bot.send_message(callback_data.client, 'Ваш заказ принят в обработку сотрудником @' + str(
         callback.from_user.username))
     cursor.execute('update sold set state=\'В обработке\' where id=' + str(callback_data.order_id))
