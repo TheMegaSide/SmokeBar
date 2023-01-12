@@ -17,7 +17,7 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 logging.basicConfig(level=logging.INFO)
 conn = psycopg2.connect(dbname='postgres', user='postgres', password='12345', host='localhost')
 cursor = conn.cursor()
-group_id = -828412008
+group_id = -881188081
 
 TOKEN = "5922515777:AAGII3tdL8L9h7jd-KmObXUb3o3EBS7RFLw"
 bot = Bot(TOKEN, parse_mode="HTML")
@@ -336,8 +336,8 @@ async def order_all(message: types.Message, state: FSMContext):
                 [types.KeyboardButton(text="Нет")]
             ]
             keyboard = types.ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True, one_time_keyboard=True)
-            await message.answer("Предыдущий заказ:\nТелефон:" + client.get(message.from_user.id)[1] + '\nАдрес:' +
-                                 client.get(message.from_user.id)[2])
+            await message.answer("Предыдущий заказ:\nТелефон:" + str(client.get(message.from_user.id)[1]) + '\nАдрес:' +
+                                 str(client.get(message.from_user.id)[2]))
             await message.answer("Ваши данные за прошлый заказ еще актуальны?", reply_markup=keyboard)
 
 
@@ -400,9 +400,9 @@ async def process_order(user_id: int, username: str):
     await bot.send_message(group_id,
                            "Пришел заказ №" + str(
                                next(iter(order.items()))[1][0]) + " Покупатель:@" + username
-                           + "\nСписок товаров: " + answer +
-                           'Сумма=' + str(total) + '\nАдрес:' + next(iter(clients.items()))[1][2] + '\nТелефон:' +
-                           next(iter(clients.items()))[1][1],
+                           + "\nСписок товаров:\n" + answer +
+                           'Сумма=' + str(total) + '\nАдрес:' + str(next(iter(clients.items()))[1][2]) + '\nТелефон:' +
+                           str(next(iter(clients.items()))[1][1]),
                            reply_markup=take_order(user_id, next(iter(order.items()))[1][0]))
 
     query = 'delete from korzina where userid=' + str(user_id)
